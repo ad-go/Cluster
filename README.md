@@ -48,7 +48,11 @@ to link to was removed from `ad-go/cluster-ui` 2026-08-20.
 
 ### Prerequisites
 
-- A CodeIgniter 4 app with `codeigniter4/tasks` and `codeigniter4/queue` installed and scheduled
+- A CodeIgniter 4 app
+- [Tasks](https://github.com/codeigniter4/tasks) — needed to schedule `cluster:pull`/
+  `cluster:long-poll`/`cluster:ssh-check`/`cluster:sync-db`/`cluster:time-drift`, all cron-triggered
+- [Queue](https://github.com/codeigniter4/queue) — needed for the async push jobs (file pushes,
+  DB row broadcasts, session-invalidation broadcasts, SSH connectivity checks) `queue:work` processes
 - [Shield](https://github.com/codeigniter4/shield) — needed for session-based invalidation and
   the SSO handoff's session-authenticated leg
 
