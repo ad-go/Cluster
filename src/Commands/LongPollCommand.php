@@ -50,6 +50,20 @@ use Throwable;
  * roughly every ~28-30s instead of once a full minute, with zero crontab
  * changes needed - "at 30s, switch the direct node for the next one".
  *
+ * The "one peer per round is enough" reasoning above does NOT hold for
+ * test-requests specifically: unlike files/db-rows/invalidations (pushed
+ * to EVERY public peer directly, so any one of them already has the full
+ * picture), a RemoteTestQueue entry only ever exists on whichever ONE
+ * public peer the admin happened to be browsing when they clicked "test" -
+ * found live 2026-08-20, testing bak's Databases row from h1q's Settings
+ * page took anywhere from 5s to 47s depending on whether the rotation
+ * happened to be holding a connection to h1q right then, not the sub-30s
+ * this class's own docblock promises. quickTestRequestSweep() below closes
+ * that gap: a fast, non-holding pull-test-requests-only check against
+ * every OTHER public peer too, once per invocation - cheap (a plain GET,
+ * near-instant when nothing's queued) and independent of which peer this
+ * invocation's held rounds happen to land on.
+ *
  * Scheduled via app/Config/Tasks.php, same as cluster:pull:
  *   $schedule->command('cluster:long-poll')->everyMinute();
  */
@@ -67,9 +81,15 @@ class LongPollCommand extends BaseCommand
     private const CLIENT_TIMEOUT_SECONDS = 40;
 
     // Two rounds, no sleep between - see this class's own docblock. A
-    // hard ceiling on TOTAL time this invocation may run, so a slow tick
+    // hard ceiling on the ROUND loop specifically (timed from right after
+    // quickTestRequestSweep(), not from run()'s own start) so a slow tick
     // can never overlap into territory the NEXT cron-triggered tick would
-    // also be running in.
+    // also be running in. The sweep itself adds up to
+    // SWEEP_TIMEOUT_SECONDS * (peer count - 1) on top in the worst case (a
+    // genuinely unreachable peer, not the normal near-instant case) -
+    // acceptable since a run that overlaps the next tick just makes that
+    // next tick skip via acquireLock(), the same self-healing behavior
+    // cluster:pull already relies on.
     private const MAX_TOTAL_SECONDS = 55;
 
     public function run(array $params)
@@ -106,6 +126,8 @@ class LongPollCommand extends BaseCommand
         }
 
         try {
+            $this->quickTestRequestSweep($cluster, $peerNames);
+
             $start  = microtime(true);
             $rounds = 0;
             do {
@@ -194,6 +216,39 @@ class LongPollCommand extends BaseCommand
                 sprintf('cluster:long-poll: %s - %d invalidation(s), %d file(s), %d deletion(s), %d db row(s), %d test(s) relayed.', $peerName, $invalidationsApplied, $filesDownloaded, $filesDeleted, $dbRowsApplied, $testsRelayed),
                 'green'
             );
+        }
+    }
+
+    // A plain GET per peer (PullSync::pullTestRequests(), the same call
+    // PullCommand already makes every peer every minute) - not the 28s
+    // held connection round() opens, so this adds negligible time even
+    // against all of them. See this class's own docblock for why
+    // test-requests specifically need this on top of the rotation.
+    private const SWEEP_TIMEOUT_SECONDS = 8;
+
+    /**
+     * @param list<string> $peerNames
+     */
+    private function quickTestRequestSweep(Cluster $cluster, array $peerNames): void
+    {
+        $sync  = new PullSync();
+        $peers = $cluster->publicPeers();
+
+        foreach ($peerNames as $peerName) {
+            $node = $peers[$peerName] ?? null;
+            if ($node === null) {
+                continue;
+            }
+
+            try {
+                $client   = service('curlrequest', ['baseURI' => $node['baseURL'], 'timeout' => self::SWEEP_TIMEOUT_SECONDS], null, null, false);
+                $relayed  = $sync->pullTestRequests($client, $cluster);
+                if ($relayed > 0) {
+                    CLI::write("cluster:long-poll: sweep $peerName - $relayed test(s) relayed.", 'green');
+                }
+            } catch (Throwable $e) {
+                CLI::write("cluster:long-poll: sweep $peerName failed - " . $e->getMessage(), 'yellow');
+            }
         }
     }
 
