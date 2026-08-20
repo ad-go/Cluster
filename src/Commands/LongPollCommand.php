@@ -60,9 +60,14 @@ use Throwable;
  * happened to be holding a connection to h1q right then, not the sub-30s
  * this class's own docblock promises. quickTestRequestSweep() below closes
  * that gap: a fast, non-holding pull-test-requests-only check against
- * every OTHER public peer too, once per invocation - cheap (a plain GET,
- * near-instant when nothing's queued) and independent of which peer this
- * invocation's held rounds happen to land on.
+ * every OTHER public peer too - cheap (a plain GET, near-instant when
+ * nothing's queued) and independent of which peer this invocation's held
+ * rounds happen to land on. Run before EACH round (not just once at the
+ * start of the invocation), so a request queued between the two rounds
+ * still gets caught before the SECOND round's own ~28s hold finishes,
+ * rather than waiting for the next cron tick entirely - worst case drops
+ * from "up to a full tick" to "up to one round's hold, ~28-30s", still
+ * bounded by two sweep points per invocation, not a continuous interval.
  *
  * Scheduled via app/Config/Tasks.php, same as cluster:pull:
  *   $schedule->command('cluster:long-poll')->everyMinute();
@@ -126,11 +131,16 @@ class LongPollCommand extends BaseCommand
         }
 
         try {
-            $this->quickTestRequestSweep($cluster, $peerNames);
-
             $start  = microtime(true);
             $rounds = 0;
             do {
+                // Before EACH round, not just once at the start - a
+                // request queued right after the first sweep still has to
+                // wait for the SECOND one (~HOLD_SECONDS later, once
+                // round() below returns) rather than for the next cron
+                // tick entirely. See this class's own docblock.
+                $this->quickTestRequestSweep($cluster, $peerNames);
+
                 $peerName = $this->nextPeer($peerNames);
                 $this->round($config, $cluster, $peerName, $cluster->publicPeers()[$peerName]);
                 $rounds++;
