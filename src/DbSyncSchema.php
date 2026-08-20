@@ -267,7 +267,7 @@ class DbSyncSchema
      * The Settings package's own table has lived in the 'cluster'
      * connection group since 2026-08-19 (see app/Config/Settings.php's
      * 'group' and CI4install.php's patchSettingsClusterGroup() /
-     * runSettingsMigrationAgainstClusterGroup() /cluster.md's own
+     * runSettingsMigrationAgainstClusterGroup() /asyncron.md's own
      * writeup) - never in whatever connection a caller happens to pass
      * around for OTHER tables (users, generic app tables, both still on
      * 'default'). exportSetting()/exportAllSettingIds()/
