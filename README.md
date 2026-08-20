@@ -126,7 +126,7 @@ Neither package auto-registers routes, filters, or scheduler entries into your a
 `Routes.php`, `Filters.php`, `Queue.php`'s job handlers, the scheduler, and `.env`, then call
 `Cluster::broadcast*()` wherever a password changes, a user logs out, or an account is
 deleted/banned. See `RouteRegistrar::register()`/`Config\Cluster`'s own docblocks for the
-exact wiring, or `cluster_install.php`'s `patchFiltersSecurity()`/`patchQueueJobHandlers()`/
+exact wiring, or `asyncron.php`'s `patchFiltersSecurity()`/`patchQueueJobHandlers()`/
 `patchTasksSchedule()` for a working reference implementation.
 
 ## Not built yet
