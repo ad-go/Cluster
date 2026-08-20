@@ -18,8 +18,8 @@ namespace AdGo\Cluster;
  * was added or changed. This class is that one edit point instead.
  *
  * Every registered checker exposes the SAME `checkParams(array $params):
- * array` shape (see DbConnectionChecker/NodeConnectionChecker/
- * CronConnectionChecker's own docblocks) - raw parameters that arrived
+ * array` shape (see DbConnectionChecker/NodeConnectionChecker's own
+ * docblocks) - raw parameters that arrived
  * either from this node's own Settings lookup (SettingsController::
  * runLocalTest()) or literally over the wire from another node
  * (RemoteTestController/PullSync), never a second Settings lookup on the
@@ -39,7 +39,6 @@ class CapabilityChecker
     private const CHECKERS = [
         'database' => DbConnectionChecker::class,
         'node'     => NodeConnectionChecker::class,
-        'cron'     => CronConnectionChecker::class,
     ];
 
     /**

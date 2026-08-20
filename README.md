@@ -32,7 +32,7 @@ nodes in sync over plain HTTPS, with no shared database and no shared session st
   extension) against every node with SSH credentials on file, right after login and every minute
 - **On-demand capability tests, NAT-safe** — `CapabilityChecker` is the single dispatch point
   every "does this connection actually work" check funnels through (database, FTP/FTPS/SSH/SCP
-  deploy access, crontab read+write), one registry entry per capability so adding another later
+  deploy access), one registry entry per capability so adding another later
   never touches the call sites. Works even for a node with no public URL: the request relays
   through that node's own next `cluster:pull` cycle rather than needing to be reachable directly
   — see [ad-go/cluster-ui](https://github.com/ad-go/cluster-ui)'s Settings → Nodes/Databases

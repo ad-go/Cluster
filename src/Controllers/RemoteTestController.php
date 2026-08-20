@@ -44,7 +44,7 @@ class RemoteTestController extends Controller
 {
     /**
      * Public-target path: run a check right here, right now, and return
-     * the result directly. Body: {"kind": "database"|"node"|"cron", ...params}
+     * the result directly. Body: {"kind": "database"|"node", ...params}
      * - params match whichever checker CapabilityChecker::run() resolves
      * $kind to, since this just hands the decoded body straight through -
      * see that class's own docblock for why dispatch lives there and not
